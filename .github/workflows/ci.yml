@@ -10,18 +10,22 @@ jobs:
   # -----------------------
   # 1️⃣ PREPARE STAGE
   # -----------------------
-  prepare:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+prepare:
+  runs-on: ubuntu-latest
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'maven'
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        cache: maven   # <--- enables automatic Maven caching
+
+    - name: Verify Maven Directory Exists
+      run: |
+        mkdir -p ~/.m2/repository
 
   # -----------------------
   # 2️⃣ BUILD STAGE
