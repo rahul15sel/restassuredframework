@@ -1,4 +1,4 @@
-name: API Automation CI
+name: REST Assured CI Pipeline
 
 on:
   push:
@@ -6,59 +6,79 @@ on:
   pull_request:
 
 jobs:
-  build-test:
-    runs-on: ubuntu-latest
 
+  # -----------------------
+  # 1️⃣ PREPARE STAGE
+  # -----------------------
+  prepare:
+    runs-on: ubuntu-latest
     steps:
-      # -------------------------
-      # Checkout repo
-      # -------------------------
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # -------------------------
-      # Setup JDK
-      # -------------------------
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 17
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
 
-      # -------------------------
-      # Cache Maven dependencies
-      # -------------------------
-      - name: Cache Maven packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2
+  # -----------------------
+  # 2️⃣ BUILD STAGE
+  # -----------------------
+  build:
+    runs-on: ubuntu-latest
+    needs: prepare
+    steps:
+      - uses: actions/checkout@v4
 
-      # -------------------------
-      # Run tests
-      # -------------------------
-      - name: Run API Tests
-        run: mvn -B clean test
+      - name: Build Maven project
+        run: mvn -B clean install
 
-      # -------------------------
-      # Generate Allure report
-      # -------------------------
-      - name: Generate Allure Report
-        run: mvn allure:report
+  # -----------------------
+  # 3️⃣ TEST STAGE – RUN TESTNG SUITE
+  # -----------------------
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
 
-      # -------------------------
-      # Upload allure-results & allure-report as artifacts
-      # -------------------------
+      - name: Run TestNG Suite
+        run: mvn clean test -DsuiteXmlFile=testng.xml
+
       - name: Upload Allure Results
         uses: actions/upload-artifact@v4
         with:
           name: allure-results
-          path: allure-results/
+          path: allure-results
+          retention-days: 7
 
-      - name: Upload Allure Report
+  # -----------------------
+  # 4️⃣ ALLURE REPORT GENERATION
+  # -----------------------
+  allure-report:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Allure Results
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results
+
+      - name: Install Allure CLI
+        run: |
+          sudo npm install -g allure-commandline --save-dev
+
+      - name: Generate Allure Report
+        run: |
+          allure generate allure-results --clean -o allure-report
+
+      - name: Upload Allure HTML Report
         uses: actions/upload-artifact@v4
         with:
-          name: allure-html-report
-          path: target/site/allure-maven-plugin/
+          name: allure-report
+          path: allure-report
